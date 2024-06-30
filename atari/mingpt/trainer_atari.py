@@ -54,6 +54,7 @@ class TrainerConfig:
         for k,v in kwargs.items():
             setattr(self, k, v)
 
+
 class Trainer:
 
     def __init__(self, model, train_dataset, test_dataset, config):
@@ -68,6 +69,7 @@ class Trainer:
             self.device = torch.cuda.current_device()
             self.model = torch.nn.DataParallel(self.model).to(self.device)
 
+    # Save the model to
     def save_checkpoint(self):
         # DataParallel wrappers keep raw model object in .module attribute
         raw_model = self.model.module if hasattr(self.model, "module") else self.model
@@ -76,6 +78,7 @@ class Trainer:
 
     def train(self):
         model, config = self.model, self.config
+        # architecture and nothing else!
         raw_model = model.module if hasattr(self.model, "module") else model
         optimizer = raw_model.configure_optimizers(config)
 
@@ -88,10 +91,12 @@ class Trainer:
                                 num_workers=config.num_workers)
 
             losses = []
+            # progress bar wrapped around enumerated loader / enumerated loader
             pbar = tqdm(enumerate(loader), total=len(loader)) if is_train else enumerate(loader)
             for it, (x, y, r, t) in pbar:
 
                 # place data on the correct device
+                # State, Action, Return, Target
                 x = x.to(self.device)
                 y = y.to(self.device)
                 r = r.to(self.device)

@@ -1,5 +1,9 @@
-# source: https://github.com/google-research/batch_rl/blob/master/batch_rl/fixed_replay/replay_memory/fixed_replay_buffer.py
-
+# source: https://github.com/google-research/batch_rl/blob/master/batch_rl/fixed_replay/replay_memory
+# /fixed_replay_buffer.py
+"""
+Replay buffer used to store experience tuples (s, a, r, s', d) during training.
+THIS IS ACTUALLY NON-TRIVIAL TO LOOK AT BUT AT LEAST IT WAS COMMENTED!!
+"""
 import collections
 from concurrent import futures
 from dopamine.replay_memory import circular_replay_buffer

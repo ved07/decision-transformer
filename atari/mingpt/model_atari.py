@@ -28,9 +28,11 @@ logger = logging.getLogger(__name__)
 
 import numpy as np
 
+
 class GELU(nn.Module):
     def forward(self, input):
         return F.gelu(input)
+
 
 class GPTConfig:
     """ base GPT config, params common to all GPT versions """
@@ -44,11 +46,13 @@ class GPTConfig:
         for k,v in kwargs.items():
             setattr(self, k, v)
 
+
 class GPT1Config(GPTConfig):
     """ GPT-1 like network roughly 125M params """
     n_layer = 12
     n_head = 12
     n_embd = 768
+
 
 class CausalSelfAttention(nn.Module):
     """
@@ -77,7 +81,7 @@ class CausalSelfAttention(nn.Module):
         self.n_head = config.n_head
 
     def forward(self, x, layer_past=None):
-        B, T, C = x.size()
+        B, T, C = x.size() # Batch, Token, Channel
 
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
         k = self.key(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
@@ -86,6 +90,7 @@ class CausalSelfAttention(nn.Module):
 
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
         att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
+        # Mask the future
         att = att.masked_fill(self.mask[:,:,:T,:T] == 0, float('-inf'))
         att = F.softmax(att, dim=-1)
         att = self.attn_drop(att)
@@ -96,9 +101,10 @@ class CausalSelfAttention(nn.Module):
         y = self.resid_drop(self.proj(y))
         return y
 
+
 class Block(nn.Module):
     """ an unassuming Transformer block """
-
+    # Decoder only transformer block (only has masked self-attention)
     def __init__(self, config):
         super().__init__()
         self.ln1 = nn.LayerNorm(config.n_embd)
@@ -111,10 +117,12 @@ class Block(nn.Module):
             nn.Dropout(config.resid_pdrop),
         )
 
+# TODO: Why does the model perform an additive forward pass not simply applicative
     def forward(self, x):
         x = x + self.attn(self.ln1(x))
         x = x + self.mlp(self.ln2(x))
         return x
+
 
 class GPT(nn.Module):
     """  the full GPT language model, with a context size of block_size """
@@ -126,7 +134,7 @@ class GPT(nn.Module):
 
         self.model_type = config.model_type
 
-        # input embedding stem
+        # input embedding stem (fairly standard)
         self.tok_emb = nn.Embedding(config.vocab_size, config.n_embd)
         # self.pos_emb = nn.Parameter(torch.zeros(1, config.block_size, config.n_embd))
         self.pos_emb = nn.Parameter(torch.zeros(1, config.block_size + 1, config.n_embd))
@@ -142,9 +150,7 @@ class GPT(nn.Module):
         self.block_size = config.block_size
         self.apply(self._init_weights)
 
-
         logger.info("number of parameters: %e", sum(p.numel() for p in self.parameters()))
-
 
         self.state_encoder = nn.Sequential(nn.Conv2d(4, 32, 8, stride=4, padding=0), nn.ReLU(),
                                  nn.Conv2d(32, 64, 4, stride=2, padding=0), nn.ReLU(),

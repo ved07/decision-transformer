@@ -18,22 +18,30 @@ import pickle
 import blosc
 import argparse
 from fixed_replay_buffer import FixedReplayBuffer
-
+"""
+Create dataset of transition buffers, each buffer contains fixed-ish number of transitions
+This file is an example of why commenting code is important. Some comments have been included by author, 
+most have been included by me
+"""
 def create_dataset(num_buffers, num_steps, game, data_dir_prefix, trajectories_per_buffer):
-    # -- load data from memory (make more efficient)
-    obss = []
+    # -- load data from memory `(make more efficient) - THIS IS VERY INEFFICIENT, HAS CRASHED MY COMPUTER A TON
+    obss = [] # Observations with matrices of shape [stack_size, observation_shape]
     actions = []
     returns = [0]
     done_idxs = []
     stepwise_returns = []
 
-    transitions_per_buffer = np.zeros(50, dtype=int)
+    transitions_per_buffer = np.zeros(50, dtype=int) # initialise transitions per buffer at 0
     num_trajectories = 0
+
+    # loads in transitions from data until have sufficient
     while len(obss) < num_steps:
+        # choose a buffer, and load transitions into it
         buffer_num = np.random.choice(np.arange(50 - num_buffers, 50), 1)[0]
         i = transitions_per_buffer[buffer_num]
         print('loading from buffer %d which has %d already loaded' % (buffer_num, i))
         frb = FixedReplayBuffer(
+            # Only loading from folder 1????!?!
             data_dir=data_dir_prefix + game + '/1/replay_logs',
             replay_suffix=buffer_num,
             observation_shape=(84, 84),
@@ -48,6 +56,7 @@ def create_dataset(num_buffers, num_steps, game, data_dir_prefix, trajectories_p
             curr_num_transitions = len(obss)
             trajectories_to_load = trajectories_per_buffer
             while not done:
+                # sample the sar, s'a'r', terminal indicator, indices
                 states, ac, ret, next_states, next_action, next_reward, terminal, indices = frb.sample_transition_batch(batch_size=1, indices=[i])
                 states = states.transpose((0, 3, 1, 2))[0] # (1, 84, 84, 4) --> (4, 84, 84)
                 obss += [states]
@@ -62,6 +71,7 @@ def create_dataset(num_buffers, num_steps, game, data_dir_prefix, trajectories_p
                         trajectories_to_load -= 1
                 returns[-1] += ret[0]
                 i += 1
+                # If the size of a buffer exceeds 10^5 then
                 if i >= 100000:
                     obss = obss[:curr_num_transitions]
                     actions = actions[:curr_num_transitions]
