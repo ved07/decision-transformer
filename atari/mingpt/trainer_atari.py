@@ -54,7 +54,6 @@ class TrainerConfig:
         for k,v in kwargs.items():
             setattr(self, k, v)
 
-
 class Trainer:
 
     def __init__(self, model, train_dataset, test_dataset, config):
@@ -65,11 +64,12 @@ class Trainer:
 
         # take over whatever gpus are on the system
         self.device = 'cpu'
+        self.temp_model = self.model
         if torch.cuda.is_available():
             self.device = torch.cuda.current_device()
             self.model = torch.nn.DataParallel(self.model).to(self.device)
+            self.temp_model = self.model.module
 
-    # Save the model to
     def save_checkpoint(self):
         # DataParallel wrappers keep raw model object in .module attribute
         raw_model = self.model.module if hasattr(self.model, "module") else self.model
@@ -189,7 +189,8 @@ class Trainer:
             state = state.type(torch.float32).to(self.device).unsqueeze(0).unsqueeze(0)
             rtgs = [ret]
             # first state is from env, first rtg is target return, and first timestep is 0
-            sampled_action = sample(self.model.module, state, 1, temperature=1.0, sample=True, actions=None, 
+            raw_model = self.model.module if hasattr(self.model, "module") else self.model
+            sampled_action = sample(raw_model, state, 1, temperature=1.0, sample=True, actions=None,
                 rtgs=torch.tensor(rtgs, dtype=torch.long).to(self.device).unsqueeze(0).unsqueeze(-1), 
                 timesteps=torch.zeros((1, 1, 1), dtype=torch.int64).to(self.device))
 
@@ -216,7 +217,8 @@ class Trainer:
                 rtgs += [rtgs[-1] - reward]
                 # all_states has all previous states and rtgs has all previous rtgs (will be cut to block_size in utils.sample)
                 # timestep is just current timestep
-                sampled_action = sample(self.model.module, all_states.unsqueeze(0), 1, temperature=1.0, sample=True, 
+                raw_model = self.model.module if hasattr(self.model, "module") else self.model
+                sampled_action = sample(raw_model, all_states.unsqueeze(0), 1, temperature=1.0, sample=True,
                     actions=torch.tensor(actions, dtype=torch.long).to(self.device).unsqueeze(1).unsqueeze(0), 
                     rtgs=torch.tensor(rtgs, dtype=torch.long).to(self.device).unsqueeze(0).unsqueeze(-1), 
                     timesteps=(min(j, self.config.max_timestep) * torch.ones((1, 1, 1), dtype=torch.int64).to(self.device)))
@@ -317,7 +319,7 @@ class Env():
 
 class Args:
     def __init__(self, game, seed):
-        self.device = torch.device('cuda')
+        self.device = torch.device('cpu')
         self.seed = seed
         self.max_episode_length = 108e3
         self.game = game

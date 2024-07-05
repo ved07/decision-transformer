@@ -24,7 +24,7 @@ parser.add_argument('--seed', type=int, default=123)
 parser.add_argument('--context_length', type=int, default=30)
 parser.add_argument('--epochs', type=int, default=5)
 parser.add_argument('--model_type', type=str, default='reward_conditioned')
-parser.add_argument('--num_steps', type=int, default=500000)
+parser.add_argument('--num_steps', type=int, default=5)
 parser.add_argument('--num_buffers', type=int, default=50)
 parser.add_argument('--game', type=str, default='Breakout')
 parser.add_argument('--batch_size', type=int, default=128)
@@ -82,10 +82,9 @@ model = GPT(mconf)
 
 # initialize a trainer instance and kick off training
 epochs = args.epochs
-# Changed num_workers to 1 because *WINDOWS* :|
 tconf = TrainerConfig(max_epochs=epochs, batch_size=args.batch_size, learning_rate=6e-4,
                       lr_decay=True, warmup_tokens=512*20, final_tokens=2*len(train_dataset)*args.context_length*3,
-                      num_workers=1, seed=args.seed, model_type=args.model_type, game=args.game, max_timestep=max(timesteps))
+                      num_workers=4, seed=args.seed, model_type=args.model_type, game=args.game, max_timestep=max(timesteps))
 trainer = Trainer(model, train_dataset, None, tconf)
 
 
